@@ -81,21 +81,37 @@ public:
 
         // The rest of the constraints
         for (int t = 1; t < N; t++) {
-            AD<double> x1 = vars[x_start + t];
+            AD<double>
+            // state at time t + 1
+                    x1 = vars[x_start + t],
+                    y1 = vars[y_start + t],
+                    psi1 = vars[psi_start + t],
+                    v1 = vars[v_start + t],
+                    cte1 = vars[cte_start + t],
+                    epsi1 = vars[epsi_start + t],
+                    delta1 = vars[delta_start + t],
+                    a1 = vars[a_start + t],
 
-            AD<double> x0 = vars[x_start + t - 1];
-            AD<double> psi0 = vars[psi_start + t - 1];
-            AD<double> v0 = vars[v_start + t - 1];
+            // state at time t
+                    x0 = vars[x_start + t - 1],
+                    y0 = vars[y_start + t - 1],
+                    psi0 = vars[psi_start + t - 1],
+                    v0 = vars[v_start + t - 1],
+                    cte0 = vars[cte_start + t - 1],
+                    epsi0 = vars[epsi_start + t - 1],
+                    delta0 = vars[delta_start + t - 1],
+                    a0 = vars[a_start + t - 1],
 
-            // Here's `x` to get you started.
-            // The idea here is to constraint this value to be 0.
-            //
-            // NOTE: The use of `AD<double>` and use of `CppAD`!
-            // This is also CppAD can compute derivatives and pass
-            // these to the solver.
+                    f_x0 = coeffs[0] + coeffs[1] * x0,
+                    psi_des0 = CppAD::atan(coeffs[1]);
 
-            // TODO: Setup the rest of the model constraints
+            // model constraints
             fg[1 + x_start + t] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
+            fg[1 + y_start + t] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
+            fg[1 + psi_start + t] = psi1 - (psi0 + v0 / Lf * delta0 * dt);
+            fg[1 + v_start + t] = v1 - (v0 + a0 * dt);
+            fg[1 + cte_start + t] = cte1 - (f_x0 - y0 + v0 * CppAD::sin(epsi0) * dt);
+            fg[1 + epsi_start + t] = epsi1 - (psi0 - psi_des0 + v0 / Lf * delta0 * dt);
         }
     }
 };
@@ -266,17 +282,16 @@ int main() {
     ptsy << -1, -1;
 
     // TODO: fit a polynomial to the above x and y coordinates
-    auto coeffs = ?;
+    auto coeffs = polyfit(ptsx, ptsy, 1);
 
     // NOTE: free feel to play around with these
     double x = -1;
     double y = 10;
     double psi = 0;
     double v = 10;
-    // TODO: calculate the cross track error
-    double cte = ?;
-    // TODO: calculate the orientation error
-    double epsi = ?;
+    double cte = polyeval(coeffs, x) - y;
+    // linear function
+    double epsi = psi - atan(coeffs[1]);
 
     Eigen::VectorXd state(6);
     state << x, y, psi, v, cte, epsi;
